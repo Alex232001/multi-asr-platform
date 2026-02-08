@@ -1,0 +1,18 @@
+﻿# FastAPI и веб-сервер
+fastapi==0.104.1
+uvicorn==0.24.0
+python-multipart==0.0.6
+
+# Аудио обработка
+librosa==0.10.1
+pydub==0.25.1
+
+
+
+onnxruntime==1.17.0
+numpy==1.26.0
+
+
+
+sentencepiece==0.2.0
+

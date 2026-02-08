@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Speech Recognition Microservices Demo</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link rel="stylesheet" href="styles/style.css">
+</head>
+<body>
+    <!-- Header -->
+    <header class="header">
+        <div class="container">
+            <nav class="nav">
+            </nav>
+        </div>
+    </header>
+
+    <!-- Hero Section -->
+    <section class="hero">
+        <div class="container">
+            <h1>Speech Recognition Microservices</h1>
+        </div>
+    </section>
+
+    <!-- Main App -->
+    <div class="app-container">
+        <!-- Upload Section -->
+        <section class="upload-section">
+            <div class="container">
+                <h2>Загрузите аудиофайл</h2>
+                <p>Поддерживаемые форматы: WAV MP3 FLAC OGG M4A/AAC</p>
+                <strong>Важно:</strong> На текущий момент поддерживается только русское аудио не больше 30 сек.
+
+            </div>
+                
+                <div class="upload-area" id="uploadArea">
+                    <div class="upload-icon">
+                        <i class="fas fa-file-audio"></i>
+                    </div>
+                    <h3>Перетащите аудиофайл сюда</h3>
+                    <p>или</p>
+                    <button class="btn btn-primary" id="browseBtn">
+                        <i class="fas fa-folder-open"></i> Выбрать файл
+                    </button>
+                    <input type="file" id="fileInput" accept="audio/*" style="display: none;">
+                    <div id="fileInfo" style="margin-top: 15px;"></div>
+                </div>
+
+                <div id="audioPreview" style="display: none; margin-top: 20px;">
+                    <audio controls id="audioPlayer" style="width: 100%; margin: 10px 0;"></audio>
+                </div>
+            </div>
+        </section>
+
+        <!-- Models Selection -->
+        <section class="models-section">
+            <div class="container">
+                <h2>Выберите модели для сравнения</h2>
+                <p style="margin-bottom: 20px; color: #aaa;">
+                    Нажмите на модель, чтобы выбрать её. Можно выбрать одну, две или все три модели для сравнения.
+                    <br><strong>Выбрано моделей: <span id="selectedCount">0</span> из 3</strong>
+                </p>
+                <div class="models-grid">
+                    <div class="model-card whisper" data-model="whisper">
+                        <div class="model-icon">
+                            <i class="fab fa-openai"></i>
+                        </div>
+                        <h3>OpenAI Whisper</h3>
+                        <p>Большая модель с поддержкой множества языков</p>
+                        <div class="model-stats">
+                            <small>Точность: ⭐⭐⭐⭐⭐</small><br>
+                            <small>Скорость: ⭐⭐⭐</small>
+                        </div>
+                    </div>
+                    <div class="model-card vosk" data-model="vosk">
+                        <div class="model-icon">
+                            <i class="fas fa-brain"></i>
+                        </div>
+                        <h3>VOSK</h3>
+                        <p>Легковесная оффлайн модель</p>
+                        <div class="model-stats">
+                            <small>Точность: ⭐⭐⭐</small><br>
+                            <small>Скорость: ⭐⭐⭐⭐⭐</small>
+                        </div>
+                    </div>
+                    <div class="model-card nemo" data-model="nemo">
+                        <div class="model-icon">
+                            <i class="fas fa-robot"></i>
+                        </div>
+                        <h3>NVIDIA Nemo</h3>
+                        <p>Высокопроизводительная модель от NVIDIA</p>
+                        <div class="model-stats">
+                            <small>Точность: ⭐⭐⭐⭐</small><br>
+                            <small>Скорость: ⭐⭐⭐⭐</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Process Button -->
+        <section style="text-align: center; padding: 20px; border-bottom: 1px solid var(--border);">
+            <button class="btn btn-success" id="processBtn" disabled>
+                <i class="fas fa-play"></i> Запустить распознавание (<span id="processCount">0</span> моделей)
+            </button>
+        </section>
+
+        <!-- Loading -->
+        <div class="loading" id="loading">
+            <div class="spinner"></div>
+            <h3>Обрабатываем аудио...</h3>
+            <p>Запрос отправлен в <span id="loadingCount">0</span> микросервисов</p>
+            <div id="processingModels" style="margin-top: 15px;"></div>
+        </div>
+
+        <!-- Results Section -->
+        <section class="results-section" id="resultsSection" style="display: none;">
+            <div class="container">
+                <h2>Результаты распознавания</h2>
+                <p style="margin-bottom: 20px; color: #aaa;">
+                    Сравнение результатов от выбранных моделей. Каждая модель обработала ваш аудиофайл независимо.
+                </p>
+                <div class="results-grid">
+                    <div class="result-card" id="whisperResultCard">
+                        <h3 style="color: var(--whisper);">
+                            <i class="fab fa-openai"></i> OpenAI Whisper
+                        </h3>
+                        <div class="result-text empty" id="whisperResult">
+                            Эта модель не была выбрана для обработки
+                        </div>
+                        <div class="metrics">
+                            <div class="metric">
+                                <small>Время обработки</small>
+                                <div class="metric-value" id="whisperTime">-</div>
+                            </div>
+                            <div class="metric">
+                                <small>Уверенность</small>
+                                <div class="metric-value" id="whisperConfidence">-</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="result-card" id="voskResultCard">
+                        <h3 style="color: var(--vosk);">
+                            <i class="fas fa-brain"></i> VOSK
+                        </h3>
+                        <div class="result-text empty" id="voskResult">
+                            Эта модель не была выбрана для обработки
+                        </div>
+                        <div class="metrics">
+                            <div class="metric">
+                                <small>Время обработки</small>
+                                <div class="metric-value" id="voskTime">-</div>
+                            </div>
+                            <div class="metric">
+                                <small>Уверенность</small>
+                                <div class="metric-value" id="voskConfidence">-</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="result-card" id="nemoResultCard">
+                        <h3 style="color: var(--nemo);">
+                            <i class="fas fa-robot"></i> NVIDIA Nemo
+                        </h3>
+                        <div class="result-text empty" id="nemoResult">
+                            Эта модель не была выбрана для обработки
+                        </div>
+                        <div class="metrics">
+                            <div class="metric">
+                                <small>Время обработки</small>
+                                <div class="metric-value" id="nemoTime">-</div>
+                            </div>
+                            <div class="metric">
+                                <small>Уверенность</small>
+                                <div class="metric-value" id="nemoConfidence">-</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="result-card">
+                        <h3 style="color: var(--primary);">
+                            <i class="fas fa-chart-bar"></i> Сравнение моделей
+                        </h3>
+                        <div id="comparisonChart">
+                            <p style="text-align: center; margin: 40px 0; color: #aaa;">
+                                Здесь будет отображаться сравнительная диаграмма после получения результатов от всех выбранных моделей
+                            </p>
+                            <canvas id="metricsChart" width="400" height="200"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </div>
+
+    <!-- Footer -->
+    <footer class="footer">
+    </footer>
+    <script src="js/api-config.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="js/app.js"></script>
+
+</body>
+</html>
