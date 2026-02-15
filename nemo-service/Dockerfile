@@ -1,4 +1,4 @@
-FROM python:3.12-slim as builder
+﻿FROM python:3.12-slim as builder
 
 WORKDIR /app
 
@@ -26,7 +26,7 @@ COPY --from=builder /usr/local/bin /usr/local/bin
 COPY app.py .
 
 # Убедимся что setuptools установлен
-RUN pip install --no-cache-dir setuptools
+RUN pip install --no-cache-dir --upgrade pip setuptools wheel
 
 #################################################################
 RUN wget "https://storage.yandexcloud.net/ai-models-stellarclaw/nemo/model.onnx" -O model.onnx
