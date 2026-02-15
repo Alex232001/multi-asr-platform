@@ -1,0 +1,120 @@
+name: Deploy Terraform
+
+on:
+  workflow_dispatch:
+
+env:
+  # Yandex Cloud Secrets
+  YC_FOLDER_ID: ${{ secrets.YC_FOLDER_ID }}
+  YC_REGISTRY_ID: ${{ secrets.YC_REGISTRY_ID }}
+  YC_ACCESS_KEY: ${{ secrets.YC_ACCESS_KEY }}
+  YC_SECRET_KEY: ${{ secrets.YC_SECRET_KEY }}
+  
+  # Terraform Variables
+  TF_VAR_folder_id: ${{ secrets.YC_FOLDER_ID }}
+  TF_VAR_registry_id: ${{ secrets.YC_REGISTRY_ID }}
+  TF_VAR_yc_access_key: ${{ secrets.YC_ACCESS_KEY }}
+  TF_VAR_yc_secret_key: ${{ secrets.YC_SECRET_KEY }}
+  
+  #TF_VAR_domain_name: "stellarclaw.ru"
+  #TF_VAR_s3_bucket_name: "docker-registry-stellarclaw"
+  #TF_VAR_container_memory: "2048"
+  #TF_VAR_vosk_images: "whisper-service"
+  TF_VAR_images_tag: "v1.1.0"
+  
+  AWS_ACCESS_KEY_ID: ${{ secrets.YC_ACCESS_KEY }}
+  AWS_SECRET_ACCESS_KEY: ${{ secrets.YC_SECRET_KEY }}
+
+  # Рабочие директории
+  TF_MICROSERVICE_DIR: "Terraform/microservice"
+  TF_WEBSITE_DIR: "Terraform/website"
+
+jobs:
+  terraform-microservice:
+    runs-on: ubuntu-latest
+    name: Deploy microservice
+    
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v2
+        with:
+          terraform_version: 1.8.0
+
+      - name: Create Service Account Key File
+        working-directory: ${{ env.TF_MICROSERVICE_DIR }}
+        run: |
+          echo '${{ secrets.YC_SERVICE_ACCOUNT_KEY_JSON }}' > sa-key.json
+          chmod 600 sa-key.json
+
+      - name: Terraform env
+        working-directory: ${{ env.TF_MICROSERVICE_DIR }}
+        run: |
+          env 
+          echo "YC_FOLDER_ID: '$YC_FOLDER_ID'"
+          echo "YC_REGISTRY_ID: '$YC_REGISTRY_ID'"
+
+      - name: Terraform Init
+        working-directory: ${{ env.TF_MICROSERVICE_DIR }}
+        run: terraform init
+
+      - name: Terraform Plan
+        working-directory: ${{ env.TF_MICROSERVICE_DIR }}
+        run: terraform plan
+
+      - name: Terraform Apply
+        working-directory: ${{ env.TF_MICROSERVICE_DIR }}
+        run: terraform apply -auto-approve
+
+  terraform-website:
+    runs-on: ubuntu-latest
+    name: Deploy website
+    needs: terraform-microservice
+    
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v2
+        with:
+          terraform_version: 1.8.0
+
+      - name: Install YC CLI
+        run: |
+          curl -sSL https://storage.yandexcloud.net/yandexcloud-yc/install.sh | bash -s -- -n -i /home/runner/yc
+          echo "/home/runner/yc/bin" >> $GITHUB_PATH
+          chmod +x /home/runner/yc/bin/yc
+
+      - name: Configure YC CLI
+        run: |   
+          # Создание файла с ключом
+          echo '${{ secrets.YC_SERVICE_ACCOUNT_KEY_JSON }}' > sa-key.json
+          chmod 600 sa-key.json
+          
+          yc config profile create github-actions
+          yc config set service-account-key sa-key.json
+          yc config set folder-id ${{ env.YC_FOLDER_ID }}
+          
+          yc --version
+          yc config profile list
+
+      - name: Create Service Account Key File
+        working-directory: ${{ env.TF_WEBSITE_DIR }}
+        run: |
+          echo '${{ secrets.YC_SERVICE_ACCOUNT_KEY_JSON }}' > sa-key.json
+          chmod 600 sa-key.json
+
+      - name: Terraform Init
+        working-directory: ${{ env.TF_WEBSITE_DIR }}
+        run: terraform init
+
+      - name: Terraform Plan
+        working-directory: ${{ env.TF_WEBSITE_DIR }}
+        run: terraform plan
+
+      - name: Terraform Apply
+        working-directory: ${{ env.TF_WEBSITE_DIR }}
+        run: terraform apply -auto-approve
